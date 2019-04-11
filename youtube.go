@@ -1,46 +1,50 @@
 package main
 
 import (
-	"net/http"
-	"os/exec"
-	"strings"
-	"os"
-	"log"
 	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 )
 
-const  (
-	none int8 = 0
-	fetching_info int8 = 1
+const (
+	none              int8 = 0
+	fetching_info     int8 = 1
 	downloading_audio int8 = 2
-	done int8 = 3
+	done              int8 = 3
 )
 
 var validVidId, _ = regexp.Compile("^[A-Za-z0-9_\\-]{11}$")
+
 func isValidVid(vid string) bool {
 	return validVidId.Match([]byte(vid))
 }
 
 var streamState = make(map[string]int8)
+
 func getStreamState(vid string) int8 {
 	s, ok := streamState[vid]
 	if ok {
 		return s
 	}
-	if _, err := os.Stat("./tmp/yt/"+vid+".mp3"); err == nil {
+	if _, err := os.Stat("./tmp/yt/" + vid + ".mp3"); err == nil {
 		streamState[vid] = done
 		return done
 	}
 	return none
 }
+
 type ytInfo struct {
-	url string
+	url  string
 	time int64
 }
 
 var infoCache = make(map[string]ytInfo)
+
 func getYtUrl(vid string, forceRefresh bool) string {
 	now := time.Now().Unix()
 	info, ok := infoCache[vid]
@@ -61,11 +65,11 @@ func getYtUrl(vid string, forceRefresh bool) string {
 	return urls[1]
 }
 
-func preFetchUrl(w http.ResponseWriter, r *http.Request){
+func preFetchUrl(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	vid, ok := q["vid"]
-	if !ok  || !isValidVid(vid[0]) {
+	if !ok || !isValidVid(vid[0]) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Error: 400 - must have vid parameter\n"))
 		return
@@ -89,7 +93,7 @@ func ytStream(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	vid, ok := q["vid"]
-	if !ok  || !isValidVid(vid[0]) {
+	if !ok || !isValidVid(vid[0]) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Error: 400 - must have vid parameter\n"))
 		return
@@ -102,12 +106,13 @@ func ytStream(w http.ResponseWriter, r *http.Request) {
 		streamState[vid[0]] = fetching_info
 		url := getYtUrl(vid[0], false)
 
-		f, err := os.Create("./tmp/yt/"+vid[0]+".mp3")
+		f, err := os.Create("./tmp/yt/" + vid[0] + ".mp3")
 		cmd := exec.Command("ffmpeg", "-i", url, "-vn", "-ab", "128k", "-ar", "44100", "-loglevel", "warning", "-f", "mp3", "pipe:1")
 		stdout, _ := cmd.StdoutPipe()
 
 		defer stdout.Close()
 		defer f.Close()
+		defer cmd.Wait()
 
 		streamState[vid[0]] = downloading_audio
 		err = cmd.Start()
@@ -116,12 +121,11 @@ func ytStream(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 
-
 		buf := make([]byte, 32*1024)
 		for {
 			n, rerr := stdout.Read(buf) // read error
-			var werr error = nil // write error
-			var ferr error = nil // file error
+			var werr error = nil        // write error
+			var ferr error = nil        // file error
 			if n > 0 {
 				b := buf[0:n]
 				if werr == nil {
@@ -129,7 +133,7 @@ func ytStream(w http.ResponseWriter, r *http.Request) {
 				}
 				_, ferr = f.Write(b)
 			}
-			if  ferr != nil {
+			if ferr != nil {
 				err = ferr
 				break
 			}
@@ -152,7 +156,7 @@ func ytStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		f, err := os.Open("./tmp/yt/"+vid[0]+".mp3")
+		f, err := os.Open("./tmp/yt/" + vid[0] + ".mp3")
 		if err != nil {
 			log.Printf("yt/stream error: %v", err)
 			panic(err)
