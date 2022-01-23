@@ -16,7 +16,7 @@ func foxInit() {
 	rand.Seed(time.Now().Unix())
 	files, err := ioutil.ReadDir("fox/")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	for _, f := range files {
 		foxFiles = append(foxFiles, f.Name())
