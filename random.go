@@ -17,6 +17,7 @@ func foxInit() {
 	files, err := ioutil.ReadDir("fox/")
 	if err != nil {
 		log.Println(err)
+		return
 	}
 	for _, f := range files {
 		foxFiles = append(foxFiles, f.Name())
@@ -24,6 +25,7 @@ func foxInit() {
 
 }
 func randomFoxHandler(w http.ResponseWriter, r *http.Request) {
+	if len(foxFiles) == 0 { return }
 	path := foxFiles[rand.Intn(len(foxFiles))]
 	data, err := ioutil.ReadFile("fox/" + path)
 	if err == nil {
@@ -35,6 +37,7 @@ func randomFoxHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func randomFoxHandlerJson(w http.ResponseWriter, r *http.Request) {
+	if len(foxFiles) == 0 { return }
 	path := foxFiles[rand.Intn(len(foxFiles))]
 	data, err := ioutil.ReadFile("fox/" + path)
 	if err == nil {
